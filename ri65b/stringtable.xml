@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Project ID="Arma3">
+	<Package ID="Addons">
+		<Container ID="Blender_CAWS">
+			<Key ID="STR_BLND_Caws_ON">
+				<English>
+				Enable RI-65B
+				</English>
+				<Russian>
+				Включить РИ-65Б
+				</Russian>
+			</Key> 
+			<Key ID="STR_BLND_Caws_OFF">
+				<English>
+				Disable RI-65B
+				</English>
+				<Russian>
+				Выключить РИ-65Б
+				</Russian>
+			</Key>
+		</Container>
+	</Package>
+</Project>
