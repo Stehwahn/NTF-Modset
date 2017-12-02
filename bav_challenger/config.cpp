@@ -17,6 +17,71 @@ class CfgPatches
 	};
 };
 class DefaultEventhandlers;
+class CfgAmmo
+{
+	class Sh_120mm_HE;
+	class CHAL_MPAT_RND: Sh_120mm_HE
+	{
+		hit=850;
+		indirectHit=145;
+		indirectHitRange=8;
+		typicalSpeed=1800;
+		explosive=0.80000001;
+		cost=300;
+		airFriction=-4.9999999e-005;
+		caliber=12;
+		timeToLive=15;
+		whistleDist=14;
+		tracerScale=3;
+		tracerStartTime=0.1;
+		tracerEndTime=3;
+		model="\A3\Weapons_f\Data\bullettracer\shell_tracer_red";
+		explosionEffects = "ATRocketExplosion";
+		CraterEffects = "120mm_HE";
+		ace_frag_charge = 3148;
+		ace_frag_classes[] = {"ace_frag_medium","ace_frag_medium_HD"};
+		ace_frag_enabled = 1;
+		ace_frag_gurney_c = 2830;
+		ace_frag_gurney_k = "1/2";
+		ace_frag_metal = 23000;
+		ace_rearm_caliber = 120;
+	};
+	class Sh_125mm_APFSDS;
+	class Smoke_120mm_AMOS_White;
+	class CHAL_SABOT_RND: Sh_125mm_APFSDS
+	{
+		hit=850;
+		indirectHit=11;
+		indirectHitRange=1;
+		typicalSpeed=1800;
+		cost=200;
+		deflecting=15;
+		airFriction=-3.9999999e-005;
+		caliber=21.67;
+		timeToLive=15;
+		whistleOnFire=1;
+		whistleDist=14;
+		tracerScale=2;
+		tracerStartTime=0.1;
+		tracerEndTime=2.3;
+		model="\A3\Weapons_f\Data\bullettracer\shell_tracer_red";
+		canlock=2;
+		explosionEffects = "ExploAmmoExplosion";
+		ace_rearm_caliber = 120;
+		CraterEffects = "ExploAmmoCrater";
+	};
+	class CHAL_WP_RND: Smoke_120mm_AMOS_White
+	{
+		hit=100;
+		indirectHit=11;
+		indirectHitRange=10;
+		caliber=23.67;
+		typicalSpeed=1200;
+		deflecting=0;
+		canlock=2;
+		ace_rearm_caliber = 120;
+	};
+};
 class CfgVehicles
 {
 	class LandVehicle;
