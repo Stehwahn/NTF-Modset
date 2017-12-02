@@ -393,8 +393,8 @@ class CfgVehicles
 			};
 		};	
 
-		weapons[] = {"FIR_MasterArm","FIR_GAU8","FIR_CMLauncher"};
-		magazines[] = {"FIR_GAU8_1174rnd_M","FIR_240rnd_CMFlare_Chaff_Magazine"};		
+		weapons[] = {"FIR_MasterArm","Gatling_30mm_Plane_CAS_01_F","FIR_CMLauncher"};
+		magazines[] = {"MG8_1174Rnd_Gau8_30mm","FIR_240rnd_CMFlare_Chaff_Magazine"};		
 
 		class Components: Components
 		{
