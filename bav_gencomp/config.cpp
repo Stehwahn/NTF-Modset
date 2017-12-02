@@ -64,7 +64,12 @@ class CfgVehicles
 			class MainTurret;
 		};
 	};
-	class Tank_F: Tank{};
+	class Quadbike_01_base_F : Car_F
+	{
+		LESH_canTow = 1;
+		LESH_AxisOffsetTower[] = {0, -1.2, 0};
+	};	
+		class Tank_F: Tank{};
 	class Helicopter: Air
 	{
 		class ACE_Actions
