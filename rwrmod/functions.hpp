@@ -68,8 +68,7 @@ displaySignalStrength = {
 	private ["_rwrrange","_threatrange","_strength","_int"];
 	//_verified	= _vehicle getVariable QGVAR(primary_threat);
 	if (_type == "PRIMARY" /*&& _threat == _verified*/) then {
-		_rwrrange = getNumber(configFile >> "CfgVehicles" >> typeOf _vehicle >> "range"); //RWR range in meters
-		if (_rwrrange == 0) then {_rwrrange = 8100};
+		_rwrrange = 10000; //RWR range in meters
 		if(getPosASL _threat select 2 > getPosASL _vehicle select 2) then {
 			CTRL(__SIGNAL_UP) ctrlShow true;
 			CTRL(__SIGNAL_DOWN) ctrlShow false;
@@ -80,7 +79,7 @@ displaySignalStrength = {
 		_threatrange = _vehicle distance _threat;
 		_strength = round((_threatrange/_rwrrange) * 100);
 		switch (true) do {
-			case (_strength < 10): { _int = 100; };
+		    case (_strength < 10): { _int = 100; };
 			case (_strength > 90): { _int = 10; };
 			case (_strength > 78): { _int = 20; };
 			case (_strength > 65): { _int = 30; };
@@ -100,10 +99,13 @@ displaySignalStrength = {
 	};
 };
 displayLaunchWarning = {
-	_vehicle = _this select 0;
-	_vehicle setVariable ["LaunchWarning",true];
-	_vehicle spawn {
-		for "_i" from 2 to 10 do {
+params["_v","_a","_f"];
+if(not Local _v)exitWith{};
+
+// Исключаем пуски с нерадарной техники и пуски нерадарных ракет
+if !(getNumber (configFile >> "cfgAmmo" >> _a >> "weaponLockSystem") == 8) exitWith{};
+	_v spawn {
+		for "_i" from 2 to 15 do {
 			// 4 FLASHES AND AUDIO TONE
 			if (_i mod 2 == 0) then {
 				CTRL(__LAUNCH) ctrlSetText "rwrmod\data\threat_launch.paa";
@@ -116,8 +118,7 @@ displayLaunchWarning = {
 			CTRL(__LAUNCH) ctrlCommit 0;
 			sleep 0.2;
 		};
-		_this setVariable ["LaunchWarning",false];
-	};
+	};	
 };
 displayLockWarning = {
 	_type = _this select 0;

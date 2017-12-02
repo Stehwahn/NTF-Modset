@@ -8,24 +8,25 @@ sleep 1;
 disableSerialization;
 
 if(getNumber(configFile >> "CfgVehicles" >> typeOf _vehicle >> "has_rwr") == 0) exitWith {};
+if(getNumber(configFile >> "CfgVehicles" >> typeOf _vehicle >> "type_rwr") == 8) exitWith {};
 
 //INIT
-private ["_type","_threats","_threatsAge","_lastScan","_RWRopen","_MaxTargets","_scanInterval","_RWRrange","_oldThreats"];
+private ["_type","_threats","_threatsAge","_lastScan","_lastScan2","_RWRopen","_MaxTargets","_scanInterval","_oldThreats","_RWRrange"];
 _type = 0;
 _threats = [];
 _threatsAge = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
 _lastScan = [];
+_lastScan2 = [];
 _oldThreats = [];
 _RWRopen = false;
 
 // CUSTOMIZABLE PARAMETERS (BASICALLY THE ONLY THING YOU CAN CHANGE HERE)
 _maxTargets = 16; // RWR maximum number of targets on-screen
-_scanInterval = 0.5; //RWR scan interval in seconds
-_RWRrange = getNumber(configFile >> "CfgVehicles" >> typeOf _vehicle >> "range"); //RWR range in meters
+_scanInterval = 0.2; //RWR scan interval in seconds
+_RWRrange = 10000; //RWR range in meters
 
 _skin = "";
 
-if (_RWRrange == 0) then {_RWRrange = 10125};
 
 //INCOMING MISSILE EVENT HANDLER
 rwr_fireSource = objNull;
@@ -59,7 +60,7 @@ private ["_midx","_midy"];
 _oldrwrposset = -1;
 
 //BEGIN MAIN LOOP
-private ["_nearStuff","_maxTargets","_threat","_invisibleThreats"];
+private ["_maxTargets","_threat","_invisibleThreats"];
 private ["_LOSorigin","_LOSend","_LOSh","_LOSdist","_LOSvector","_LOS","_posH","_posT","_viewAngleH","_viewAngleT"];
 private ["_AX","_AY","_AZ","_BX","_BY","_BZ","_HX","_HY","_HZ","_TX","_TY","_TZ"];
 private ["_diffX","_diffY","_absoluteAngle","_relativeAngle","_quadrant","_quadrantFactor","_scaleX","_scaleY","_RWRposX","_RWRposY"];
@@ -103,7 +104,8 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 	};
 	
 	//GATHER ALL NEARBY CARS AND TANKS
-	_nearStuff = getPos _vehicle nearEntities [["air","tank","min_rf_sa_22","min_rf_sa_22_desert"], _RWRrange * 0.8];
+	private _nearStuff = vehicles select {_vehicle distance _x < _RWRrange};
+    _nearStuff deleteAt (_nearStuff find _vehicle);
   
 	//SET NUMBER OF TARGETS
 	_maxTargets = if (count _nearStuff < 16) then {count _nearStuff} else {16};
@@ -112,7 +114,7 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 		//ACQUIRE THREATS AND BUILD ARRAY
 		for "_y" from 0 to (_maxTargets - 1) do {
 			_threat = _nearStuff select _y;
-			if (getNumber(configFile >> "CfgVehicles" >> typeOf _threat >> "radarType") == 4 && {_threat != _vehicle} && {({alive _x} count crew _threat > 0)} && {!(_threat in _threats)} && {!(_threat isKindOf "ParachuteBase")}) then {
+			if ((isVehicleRadarOn _threat) && {_threat != _vehicle} && {alive _threat} && {!(_threat in _threats)}) then {
 				_threats set [count _threats, _threat];
 			};
 		};
@@ -136,10 +138,20 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 			private _vPositon = (getPosASLVisual _vehicle) vectorAdd [0,0,-2];
 		    private _posx = getPosASLVisual _threat vectorAdd [0,0,2];
 		    if((count (lineIntersectsObjs [_vPositon, _posx, _threat]) <= 1)  && !(terrainIntersectASL [_vPositon, _posx]))then{ _LOS = false };
-			if (_LOS && {!(_threat in _invisibleThreats)}) then { _invisibleThreats set [count _invisibleThreats, _threat] };
+			if (_LOS && {!(_threat in _invisibleThreats)} && (isVehicleRadarOn _threat)) then { _invisibleThreats set [count _invisibleThreats, _threat] };
 		};
 		
-		if ((count (_threats - _invisibleThreats) > 0) && {({alive _x} count crew _threat > 0)}) then {
+		    if (!(isVehicleRadarOn _threat) && (alive _threat) && {_threat in _lastScan2} && {!(_threat in _lastScan)}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan2 = _lastScan2 - [_threat]; };
+			if (!(isVehicleRadarOn _threat) && (alive _threat) && {_threat in _lastScan} && {!(_threat in _lastScan2)}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan = _lastScan - [_threat]; };
+			if (!(isVehicleRadarOn _threat) && (alive _threat) && {_threat in _lastScan2}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan2 = _lastScan2 - [_threat]; };
+			if (!(isVehicleRadarOn _threat) && (alive _threat) && {_threat in _lastScan}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan = _lastScan - [_threat]; };
+			
+			if ((isVehicleRadarOn _threat) && !(alive _threat) && {_threat in _lastScan2} && {!(_threat in _lastScan)}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan2 = _lastScan2 - [_threat]; };
+			if ((isVehicleRadarOn _threat) && !(alive _threat) && {_threat in _lastScan} && {!(_threat in _lastScan2)}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan = _lastScan - [_threat]; };
+			if ((isVehicleRadarOn _threat) && !(alive _threat) && {_threat in _lastScan2}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan2 = _lastScan2 - [_threat]; };
+			if ((isVehicleRadarOn _threat) && !(alive _threat) && {_threat in _lastScan}) then { _invisibleThreats = _invisibleThreats - [_threat]; _lastScan = _lastScan - [_threat]; };
+		
+		if (count (_threats - _invisibleThreats) > 0) then {
 			if !(_RWRopen) then {
 				135737 cutRsc ["ACE_RWR_US","PLAIN"];
 				_RWRopen = true;
@@ -170,7 +182,7 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 				
 				_type = if (_threat isKindOf "Air") then {1} else {0};
 				
-				if (_threat in _threats && {!(_threat in _invisibleThreats)}) then {
+				if ((_threat in _threats) && {!(_threat in _invisibleThreats)} && (isVehicleRadarOn _threat) && (alive _threat)) then {
 					//GET VECTOR POSITIONS
 					_AX = (getPos _vehicle) select 0;
 					_BX = (getPos _threat) select 0;
@@ -196,8 +208,8 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 					_relativeAngle = - ((getDir _vehicle) - _absoluteAngle) + _quadrantFactor;
 
 					//TRANSLATE THE ABOVE TO UI VALUES
-					_scaleX = (SR5RWR_display_width / 2) * (_vehicle distance _threat) / (_RWRrange + 0);
-					_scaleY = (SR5RWR_display_height / 2) * (_vehicle distance _threat) / _RWRrange;
+					_scaleX = (SR5RWR_display_width / 2) * (_vehicle distance _threat) / (12500 + 0);
+					_scaleY = (SR5RWR_display_height / 2) * (_vehicle distance _threat) / (12500);
 					_RWRposX = _midX + (cos _relativeAngle * _scaleX);
 					_RWRposY = _midY + (sin _relativeAngle * _scaleY);
 				
@@ -216,16 +228,6 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 								//playSound "ACE_SR5RWR_AIR";
 								playSound ["ACE_SR5RWR_AIR",true];
 							};
-						};
-						//IMAGE
-						if !(_threat in _oldThreats) then {
-							CTRL(THREATS_NEW + _y) ctrlSetPosition [_RWRposX - 0.007, _RWRposY - 0.012, 0.029, 0.032];
-							CTRL(THREATS_NEW + _y) CtrlSetText "rwrmod\data\threat_new.paa";
-							CTRL(THREATS_NEW + _y) ctrlCommit 0;
-						} else {
-							CTRL(THREATS_NEW + _y) ctrlSetPosition [_RWRposX - 0.007, _RWRposY - 0.012, 0.029,0.032];
-							CTRL(THREATS_NEW + _y) CtrlSetText "";
-							CTRL(THREATS_NEW + _y) ctrlCommit 0;
 						};
 						switch (_type) do {
 							case 0: {
@@ -256,22 +258,11 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 						};
 						sleep _scanInterval;
 					} else {
+					_lastScan2 set [count _lastScan2, _threat];
 						//OLD THREATS
 						_Age = (_threatsAge select _y) + 1;
 						_threatsAge set [_y,_Age];
 						//REMOVE NEW THREAT NOTIFICATION
-						if ((_threatsAge select _y) > 10 && !(_threat in _oldThreats)) then {
-							CTRL(THREATS_NEW + _y) CtrlSetText "";
-							CTRL(THREATS_NEW + _y) ctrlCommit 0;
-							_oldThreats set [count _oldThreats, _threat];
-						};
-						//LAUNCH
-						_launcher = rwr_fireSource;
-						if !(_threat == _launcher) then {
-						_launched = _vehicle getVariable ["LaunchWarning",false];
-						if (!_launched) then {
-							CTRL(THREATS_NEW + _y) ctrlSetPosition [(_RWRposX-0.007),(_RWRposY-0.012),0.029,0.032];
-							CTRL(THREATS_NEW + _y) ctrlCommit 0;
 							CTRL(THREATS_BASE + _y) ctrlSetPosition [_RWRposX,_RWRposY+0.005,0.015,0.022];
 							CTRL(THREATS_BASE + _y) ctrlCommit 0;
 							CTRL(THREATS_GROUND + _y) ctrlSetPosition [_RWRposX-0.005,_RWRposY+0.00125,0.025,0.032];
@@ -279,31 +270,11 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 							CTRL(THREATS_AIR + _y) ctrlSetPosition [_RWRposX-0.005,_RWRposY-0.006,0.025,0.032];
 							CTRL(THREATS_AIR + _y) ctrlCommit 0;
 							CTRL(THREATS_LAUNCH + _y) ctrlSetPosition [_RWRposX-0.005,_RWRposY-0.006,0.025,0.032];
-							};
-							_vehicle setVariable ["LaunchWarning",false];
-						} else {
-						    _vehicle setVariable ["LaunchWarning",true];
-							playSound ["ACE_SR5RWR_IR",true];
-							rwr_fireSource = objNull;
-							CTRL(THREATS_NEW + _y) ctrlSetPosition [(_RWRposX-0.007),(_RWRposY-0.012),0.029,0.032];
-							CTRL(THREATS_NEW + _y) ctrlCommit 0;
-							CTRL(THREATS_BASE + _y) ctrlSetPosition [_RWRposX,_RWRposY+0.005,0.015,0.022];
-							CTRL(THREATS_BASE + _y) ctrlCommit 0;
-							CTRL(THREATS_GROUND + _y) ctrlSetPosition [_RWRposX-0.005,_RWRposY+0.00125,0.025,0.032];
-							CTRL(THREATS_GROUND + _y) ctrlCommit 0;
-							CTRL(THREATS_AIR + _y) ctrlSetPosition [_RWRposX-0.005,_RWRposY-0.006,0.025,0.032];
-							CTRL(THREATS_AIR + _y) ctrlCommit 0;
-							CTRL(THREATS_LAUNCH + _y) CtrlSetText "rwrmod\data\threat_circle.paa";
-							CTRL(THREATS_LAUNCH + _y) ctrlCommit 0;
-							sleep 0.1;
-							CTRL(THREATS_LAUNCH + _y) CtrlSetText "";
-							CTRL(THREATS_LAUNCH + _y) ctrlCommit 0;
-						};
 						sleep _scanInterval;
 					};
 				} else {
 					//THREAT IS ACTIVE BUT OUT OF RANGE
-					//if (_threat in _threats) then { _threats = _threats - [_threat] };
+					// if (_threat in _threats) then { _threats = _threats - [_threat] };
 					if (_threat in _lastScan) then {_lastScan = _lastScan - [_threat] };
 					if (_threat == rwr_fireSource) then { rwr_fireSource = objNull };
 					_threatsAge set [_y,0];
@@ -314,16 +285,13 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 					CTRL(THREATS_GROUND + _y) ctrlCommit 0;
 					CTRL(THREATS_AIR + _y) CtrlSetText "";
 					CTRL(THREATS_AIR + _y) ctrlCommit 0;
-					CTRL(THREATS_NEW + _y) CtrlSetText "";
-					CTRL(THREATS_NEW + _y) ctrlCommit 0;
-					CTRL(THREATS_LAUNCH + _y) CtrlSetText "";
-					CTRL(THREATS_LAUNCH + _y) ctrlCommit 0;
 				}; //END IF (_vehicle distance _threat > _RWRrange)
 			}; //END for (threats)
 		} else {
 			//NO THREATS
 			//_threats = [];
 			_lastScan = [];
+			_lastScan2 = [];
 			135737 cutRsc ["Default","PLAIN"]; _RWRopen = false;
 			_vehicle setVariable ["LaunchWarning",false];
 			rwr_fireSource = objNull;
@@ -332,6 +300,7 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 		//NO THREATS
 		//_threats = [];
 		_lastScan = [];
+		_lastScan2 = [];
 		135737 cutRsc ["Default","PLAIN"]; _RWRopen = false;
 		_vehicle setVariable ["LaunchWarning",false];
 		rwr_fireSource = objNull;
@@ -341,22 +310,18 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 	_rmthreats = [];
 	for "_y" from 0 to (count _threats - 1) do {
 		_threat = _threats select _y;
-		if (damage _threat > 0.9  && {_threat in _threats})	then { //THREAT DESTROYED
-			_rmthreats set [count _rmthreats, _threat];
-			_threatsAge set [_y,0];
-		};
-		if (_threat distance _vehicle > (_RWRrange * 0.8)) then { //THREAT OUT OF RANGE
+		if (_threat distance _vehicle > _RWRrange) then {
 			_rmthreats set [count _rmthreats, _threat];
 			_threatsAge set [_y, 0];
 		};
 	};
 	if (count _rmthreats > 0) then {
 		_threats = _threats - _rmthreats;
-		_oldThreats = _oldThreats - _rmthreats;
 		_lastScan = _lastScan - _rmthreats;
+		_lastScan2 = _lastScan2 - _rmthreats;
 		_threats = _threats - [objNull];
-		_oldThreats = _oldThreats - [objNull];
 		_lastScan = _lastScan - [objNull];
+		_lastScan2 = _lastScan2 - [objNull];
 	};
 }; //END While Main Loop
 

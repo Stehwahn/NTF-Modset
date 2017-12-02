@@ -10,7 +10,7 @@ disableSerialization;
 if(getNumber(configFile >> "CfgVehicles" >> typeOf _vehicle >> "has_rwr") == 0) exitWith {};
 
 //INIT
-private ["_type","_threats","_lastScan","_RWRopen","_MaxTargets","_scanInterval","_RWRrange","_oldThreats"];
+private ["_type","_threats","_lastScan","_RWRopen","_MaxTargets","_scanInterval","_oldThreats","_RWRrange"];
 _type = 0;
 _threats = [];
 _lastScan = [];
@@ -20,16 +20,15 @@ _RWRopen = false;
 
 // CUSTOMIZABLE PARAMETERS
 _maxTargets = 6; /* RWR maximum number of targets on-screen - 6 Primary 6 Secondary at a time, depending on its priority */
-_scanInterval0 = 0.5; //RWR scan interval in seconds
-_scanInterval = 0.5;
-_RWRrange = getNumber(configFile >> "CfgVehicles" >> typeOf _vehicle >> "range"); //RWR range in meters
-
-if (_RWRrange == 0) then {_RWRrange = 10125};
+_scanInterval0 = 0.3; //RWR scan interval in seconds
+_scanInterval = 0.3;
+_RWRrange = 10000; //RWR range in meters
 
 //INCOMING MISSILE EVENT HANDLER
 rwr_fireSource = objNull;
 private ["_incomingeh"];
-_incomingeh = _vehicle addEventHandler ["IncomingMissile", {rwr_fireSource = _this select 2}];
+if(!isnil "_incomingeh")then{_vehicle removeEventHandler ["IncomingMissile", _incomingeh];};
+_incomingeh = _vehicle addEventHandler ["IncomingMissile",{_this call displayLaunchWarning}];
 
 //DEFINE
 #define CTRL(A) ((uiNamespace getVariable "ACE_RWR_RU") displayCtrl A)
@@ -62,7 +61,7 @@ _incomingeh = _vehicle addEventHandler ["IncomingMissile", {rwr_fireSource = _th
 #include "functions.hpp"
 
 //BEGIN MAIN LOOP
-private ["_nearStuff","_maxTargets","_threat","_invisibleThreats"];
+private ["_maxTargets","_threat","_invisibleThreats"];
 private ["_LOSorigin","_LOSend","_LOSh","_LOSdist","_LOSvector","_LOS","_posH","_posT","_viewAngleH","_viewAngleT"];
 private ["_AX","_AY","_AZ","_BX","_BY","_BZ","_HX","_HY","_HZ","_TX","_TY","_TZ"];
 private ["_dir_index","_type_index"];
@@ -75,9 +74,8 @@ uiNamespace setVariable ["ACE_RWR_STATUS", true];
 
 while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == commander _vehicle}) && {alive _crew} && {alive _vehicle} && (uiNamespace getVariable "ACE_RWR_STATUS")} do {
 	//GATHER ALL NEARBY CARS AND TANKS
-	_nearStuff = getPos _vehicle nearEntities [["air","tank","min_rf_sa_22","min_rf_sa_22_desert"], _RWRrange * 0.8];
-	// private _nearStuff = vehicles select {_vehicle distance _x < _RWRrange};
-	// _nearStuff deleteAt (_nearStuff find _vehicle);
+    private _nearStuff = vehicles select {_vehicle distance _x < _RWRrange};
+    _nearStuff deleteAt (_nearStuff find _vehicle);
 
 	//SET NUMBER OF TARGETS
 	_maxTargets = if (count _nearStuff < 6) then {count _nearStuff} else {6};
@@ -85,8 +83,11 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 		//ACQUIRE THREATS AND BUILD ARRAY
 		for "_y" from 0 to (_maxTargets - 1) do {
 			_threat = _nearStuff select _y;
-			if (getNumber(configFile >> "CfgVehicles" >> typeOf _threat >> "radarType") == 4 && {_threat != _vehicle} && {({alive _x} count crew _threat > 0)} && {!(_threat in _threats)} && {!(_threat isKindOf "ParachuteBase")}) then {
+			if ((isVehicleRadarOn _threat) && (alive _threat) && {_threat != _vehicle} && {!(_threat in _threats)}) then {
 				_threats set [count _threats, _threat];
+			} else {
+			if (!(isVehicleRadarOn _threat) && (alive _threat)) then { _threats = _threats - [_threat]; call clearAllControls; };
+            if ((isVehicleRadarOn _threat) && !(alive _threat)) then { _threats = _threats - [_threat]; call clearAllControls; };			
 			};
 		};
 		
@@ -107,7 +108,7 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 			if (_LOS && {!(_threat in _invisibleThreats)}) then { _invisibleThreats set [count _invisibleThreats, _threat] };
 		};
 		
-		if ((count (_threats - _invisibleThreats) > 0) && {({alive _x} count crew _threat > 0)}) then {
+		if (count (_threats - _invisibleThreats) > 0) then {
 			if !(_RWRopen) then {
 				135737 cutRsc ["ACE_RWR_RU","PLAIN"];
 				_RWRopen = true;
@@ -200,7 +201,7 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 					};
 				
 					//DISPLAY THREAT ON RWR UI
-					_type_index = 0;/*getNumber(configFile >> "CfgVehicles" >> typeOf _threat >> "threat_img_spo");*/
+					_type_index = 0;
 					
 					//NEW THREAT
 					if !(_threat in _lastScan) then {
@@ -213,12 +214,10 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 					if(_threat isKindOf "Air")then{
 						_type_index = 0;
 					};
-					if(_threat isKindOf "min_rf_sa_22")then{
+					if(_threat isKindOf "Car")then{
 						_type_index = 3;
 					};
-					if(_threat isKindOf "min_rf_sa_22_desert")then{
-						_type_index = 3;
-					};
+
 					[_type,_type_index,true] call showThreatTypes;
 					
 					// THREAT DIRECTION DISPLAY
@@ -229,24 +228,6 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 					
 					// SIGNAL LOCK WARNING
 					[_type,_threat,_vehicle] call displayLockWarning;
-
-					/*// RHS MI-24 RWR
-					if(_vehicle isKindOf "RHS_Mi24_base")then{
-						[_type,_vehicle,_threat,_dir] call displayMiRwr;
-					};*/
-
-					
-					//LAUNCH
-					if (_threat == rwr_fireSource) then {
-						_launched = _vehicle getVariable ["LaunchWarning",false];
-						if (!_launched) then {
-						    _vehicle setVariable ["LaunchWarning",true];
-							[_vehicle] call displayLaunchWarning;
-							rwr_fireSource = objNull;
-						};
-					} else {
-						_vehicle setVariable ["LaunchWarning",false];
-					};
 					sleep _scanInterval0;
 				} else {
 					//THREAT IS ACTIVE BUT OUT OF RANGE
@@ -254,7 +235,6 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 					if (_threat == rwr_fireSource) then { rwr_fireSource = objNull };
 					if (_RWRopen && {count (_threats - _invisibleThreats) <= 0}) then {
 						135737 cutRsc ["Default","PLAIN"];
-						_vehicle setVariable ["LaunchWarning",false];
 						_RWRopen = false;
 					};
 					// RESET 
@@ -266,7 +246,6 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 			_lastScan = [];
 			135737 cutRsc ["Default","PLAIN"];
 			_RWRopen = false;
-			_vehicle setVariable ["LaunchWarning",false];
 			rwr_fireSource = objNull;
 		}; //END if (count _threats > 0)
 	}else {
@@ -274,7 +253,6 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 		_lastScan = [];
 		135737 cutRsc ["Default","PLAIN"];
 		_RWRopen = false;
-		_vehicle setVariable ["LaunchWarning",false];
 		rwr_fireSource = objNull;
 	}; //END if (count _nearStuff > 0)
 	sleep _scanInterval;
@@ -285,7 +263,7 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 		if (damage _threat > 0.9  && {_threat in _threats})	then { //THREAT DESTROYED
 			_rmthreats set [count _rmthreats, _threat];
 		};
-		if (_threat distance _vehicle > (_RWRrange * 0.8)) then { //THREAT OUT OF RANGE
+		if (_threat distance _vehicle > _RWRrange) then { //THREAT OUT OF RANGE
 			_rmthreats set [count _rmthreats, _threat];
 		};
 	};
@@ -297,13 +275,12 @@ while { (_crew == driver _vehicle || {_crew == gunner _vehicle} || {_crew == com
 		_oldThreats = _oldThreats - [objNull];
 		_lastScan = _lastScan - [objNull];
 	};
-	if (_threat in _threats && {!(_threat in _invisibleThreats)} && (time - _LWTIME >= LSWTIME) && {({alive _x} count crew _threat > 0)}) then {
+	if ((_RWRopen) && (time - _LWTIME >= LSWTIME)) then {
 	    _LWTIME = time;
 		playSound ["ACE_RWR15_TRACK",true];
 	};
 }; //END While Main Loop
 
 135737 cutRsc ["Default","PLAIN"];
-_vehicle setVariable ["LaunchWarning", false];
 _vehicle removeEventHandler ["IncomingMissile", _incomingeh];
 //[_crew, 1, ["ACE_SelfActions", "spo_15"]] call ace_interact_menu_fnc_removeActionFromObject;
